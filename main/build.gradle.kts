@@ -6,37 +6,8 @@
 plugins {
     id("com.android.application")
     id("checkstyle")
-}
-
-apply {
-    plugin("kotlin-android")
-    plugin("kotlin-android-extensions")
-}
-
-repositories {
-    jcenter()
-    maven(url = "https://jitpack.io")
-    google()
-}
-
-
-val openvpn3SwigFiles = File(buildDir, "generated/source/ovpn3swig/ovpn3")
-
-tasks.register<Exec>("generateOpenVPN3Swig")
-{
-    var swigcmd = "swig"
-    // Workaround for Mac OS X since it otherwise does not find swig and I cannot get
-    // the Exec task to respect the PATH environment :(
-    if (File("/usr/local/bin/swig").exists())
-        swigcmd = "/usr/local/bin/swig"
-
-    doFirst {
-        mkdir(openvpn3SwigFiles)
-    }
-    commandLine(listOf(swigcmd, "-outdir", openvpn3SwigFiles, "-outcurrentdir", "-c++", "-java", "-package", "net.openvpn.ovpn3",
-            "-Isrc/main/cpp/openvpn3/client", "-Isrc/main/cpp/openvpn3/",
-            "-o", "${openvpn3SwigFiles}/ovpncli_wrap.cxx", "-oh", "${openvpn3SwigFiles}/ovpncli_wrap.h",
-            "src/main/cpp/openvpn3/javacli/ovpncli.i"))
+    kotlin("android")
+    kotlin("android.extensions")
 }
 
 android {
@@ -45,8 +16,8 @@ android {
     defaultConfig {
         minSdkVersion(14)
         targetSdkVersion(29)  //'Q'.toInt()
-        versionCode = 164
-        versionName = "0.7.11"
+        versionCode = 165
+        versionName = "0.7.12"
 
         externalNativeBuild {
             cmake {
@@ -68,7 +39,7 @@ android {
         }
 
         create("ui") {
-            java.srcDirs("src/ovpn3/java/", openvpn3SwigFiles)
+            java.srcDirs("src/ovpn3/java/", getOpenvpn3SwigFiles())
         }
         create("skeleton") {
         }
@@ -83,7 +54,18 @@ android {
     }
 
     signingConfigs {
-        create("release") {}
+        create("release") {
+            // ~/.gradle/gradle.properties
+            val keystoreFile: String? by project
+            storeFile = keystoreFile?.let { file(it) }
+            val keystorePassword: String? by project
+            storePassword = keystorePassword
+            val keystoreAliasPassword: String? by project
+            keyPassword = keystoreAliasPassword
+            val keystoreAlias: String? by project
+            keyAlias = keystoreAlias
+        }
+
     }
 
     lintOptions {
@@ -94,7 +76,12 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            if (project.hasProperty("icsopenvpnDebugSign")) {
+                logger.warn("property icsopenvpnDebugSign set, using debug signing for release")
+                signingConfig = android.signingConfigs.getByName("debug")
+            } else {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -111,7 +98,6 @@ android {
         }
     }
 
-
     compileOptions {
         targetCompatibility = JavaVersion.VERSION_1_8
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -119,45 +105,18 @@ android {
 
     splits {
         abi {
-            setEnable(true)
+            isEnable = true
             reset()
             include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
-            setUniversalApk(true)
-
+            isUniversalApk = true
         }
     }
 }
 
-// ~/.gradle/gradle.properties
-if (project.hasProperty("keystoreFile") &&
-        project.hasProperty("keystorePassword") &&
-        project.hasProperty("keystoreAliasPassword")) {
-    android.signingConfigs.getByName("release") {
-        storeFile = file(project.properties["keystoreFile"] as String)
-        storePassword = project.properties["keystorePassword"] as String
-        keyPassword = project.properties["keystoreAliasPassword"] as String
-        keyAlias = project.properties["keystoreAlias"] as String
-    }
-} else {
-    logger.warn("Release signing config not found. Using debug signing instead.")
-    android.buildTypes.getByName("release").signingConfig = android.signingConfigs.getByName("debug")
-}
-
-
-/* Hack-o-rama but it works good enough and documentation is surprisingly sparse */
-
-val swigTask = tasks.named("generateOpenVPN3Swig")
-val preBuildTask = tasks.getByName("preBuild")
-val assembleTask = tasks.getByName("assemble")
-
-assembleTask.dependsOn(swigTask)
-preBuildTask.dependsOn(swigTask)
-
-/* Normally you would put these on top but then it errors out on unknown configurations */
 dependencies {
-    val preference_version = "1.1.0"
-    val core_version = "1.1.0"
-    val material_version = "1.0.0"
+    val preferenceVersion = "1.1.0"
+    val coreVersion = "1.1.0"
+    val materialVersion = "1.0.0"
 
     implementation("androidx.annotation:annotation:1.1.0")
     implementation("androidx.core:core:1.1.0")
@@ -170,24 +129,51 @@ dependencies {
     dependencies.add("uiImplementation", "androidx.appcompat:appcompat:1.1.0")
     dependencies.add("uiImplementation", "com.github.PhilJay:MPAndroidChart:v3.1.0")
     dependencies.add("uiImplementation", "com.squareup.okhttp3:okhttp:3.2.0")
-    dependencies.add("uiImplementation", "androidx.core:core:$core_version")
-    dependencies.add("uiImplementation", "androidx.core:core-ktx:$core_version")
-
+    dependencies.add("uiImplementation", "androidx.core:core:$coreVersion")
+    dependencies.add("uiImplementation", "androidx.core:core-ktx:$coreVersion")
     dependencies.add("uiImplementation", "org.jetbrains.anko:anko-commons:0.10.4")
-
     dependencies.add("uiImplementation", "androidx.fragment:fragment-ktx:1.1.0")
+    dependencies.add("uiImplementation", "androidx.preference:preference:$preferenceVersion")
+    dependencies.add("uiImplementation", "androidx.preference:preference-ktx:$preferenceVersion")
+    dependencies.add("uiImplementation", "com.google.android.material:material:$materialVersion")
 
 
-    dependencies.add("uiImplementation", "androidx.preference:preference:$preference_version")
-    dependencies.add("uiImplementation", "androidx.preference:preference-ktx:$preference_version")
-
-    dependencies.add("uiImplementation", "com.google.android.material:material:$material_version")
-
-
-    testImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.50")
-
+    testImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.61")
     testImplementation("junit:junit:4.12")
-    testImplementation("org.mockito:mockito-core:3.1.0")
+    testImplementation("org.mockito:mockito-core:3.2.0")
     testImplementation("org.robolectric:robolectric:4.3.1")
 }
+
+
+/* swig magic for building openvpn3 */
+fun getOpenvpn3SwigFiles(): File {
+    return File(buildDir, "generated/source/ovpn3swig/ovpn3")
+}
+
+tasks.register<Exec>("generateOpenVPN3Swig")
+{
+    var swigcmd = "swig"
+    // Workaround for Mac OS X since it otherwise does not find swig and I cannot get
+    // the Exec task to respect the PATH environment :(
+    if (File("/usr/local/bin/swig").exists())
+        swigcmd = "/usr/local/bin/swig"
+
+    doFirst {
+        mkdir(getOpenvpn3SwigFiles())
+    }
+    commandLine(listOf(swigcmd, "-outdir", getOpenvpn3SwigFiles(), "-outcurrentdir", "-c++", "-java", "-package", "net.openvpn.ovpn3",
+            "-Isrc/main/cpp/openvpn3/client", "-Isrc/main/cpp/openvpn3/",
+            "-o", "${getOpenvpn3SwigFiles()}/ovpncli_wrap.cxx", "-oh", "${getOpenvpn3SwigFiles()}/ovpncli_wrap.h",
+            "src/main/cpp/openvpn3/javacli/ovpncli.i"))
+}
+
+/* Hack-o-rama but it works good enough and documentation is surprisingly sparse */
+
+val swigTask = tasks.named("generateOpenVPN3Swig")
+val preBuildTask = tasks.getByName("preBuild")
+val assembleTask = tasks.getByName("assemble")
+
+assembleTask.dependsOn(swigTask)
+preBuildTask.dependsOn(swigTask)
+
 
