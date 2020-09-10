@@ -13,11 +13,11 @@ plugins {
 }
 
 android {
-    compileSdkVersion(29)
+    compileSdkVersion(30)
 
     defaultConfig {
         minSdkVersion(14)
-        targetSdkVersion(29)  //'Q'.toInt()
+        targetSdkVersion(30)  //'Q'.toInt()
         versionCode = 169
         versionName = "0.7.16"
 
@@ -141,6 +141,7 @@ fun registerGenTask(variantName: String, variantDirName: String): File {
                 "-Isrc/main/cpp/openvpn3/client", "-Isrc/main/cpp/openvpn3/",
                 "-o", "${genDir}/ovpncli_wrap.cxx", "-oh", "${genDir}/ovpncli_wrap.h",
                 "src/main/cpp/openvpn3/javacli/ovpncli.i"))
+
     }
     return baseDir
 }
@@ -169,7 +170,7 @@ dependencies {
 
     // Is there a nicer way to do this?
     dependencies.add("uiImplementation", "androidx.constraintlayout:constraintlayout:1.1.3")
-    dependencies.add("uiImplementation", "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.70")
+    dependencies.add("uiImplementation", "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.72")
     dependencies.add("uiImplementation", "androidx.cardview:cardview:1.0.0")
     dependencies.add("uiImplementation", "androidx.recyclerview:recyclerview:1.0.0")
     dependencies.add("uiImplementation", "androidx.appcompat:appcompat:1.1.0")
